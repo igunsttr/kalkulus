@@ -1,115 +1,65 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 12 09:14:45 2025
-
-@author: office
-"""
-
+from sympy import symbols, diff
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-# Definisi fungsi pendapatan
-def pendapatan(params, k1=1.5, k2=2, k3=0.8, k4=10, k5=20, n0=1000, alpha=5, beta=3, gamma=2, delta=150, epsilon=40):
-    h, m, w, l, t = params
-    pendapatan_per_pengunjung = k1 * h + k2 * np.sqrt(m) + k3 * np.log(w + 1) + k4 * l + k5 * t
-    jumlah_pengunjung = n0 - alpha * h + beta * m + gamma * w + delta * l + epsilon * t
-    return pendapatan_per_pengunjung * jumlah_pengunjung
+# Definisikan simbol untuk variabel
+x1, x2, x3, x4, x5 = symbols('x1 x2 x3 x4 x5')
 
-# Definisi fungsi biaya
-def biaya(m, w, c1=8, c2=4):
-    return c1 * m + c2 * w
+# Definisikan persamaan keuntungan
+P = 50000000 + 5000000*x1 + 2500000*x2 + 15000000*x3 + 10000000*x4 + 7500000*x5
 
-# Definisi fungsi keuntungan
-def keuntungan(params):
-    h, m, w, l, t = params
-    if h < 0 or m < 0 or w < 0 or l < 0 or l > 1 or t not in [0, 1]:
-        return -np.inf # Mengembalikan nilai negatif tak hingga untuk parameter tidak valid
-    return pendapatan(params) - biaya(m, w)
+# Hitung gradien menggunakan SymPy
+grad_P = [diff(P, var) for var in [x1, x2, x3, x4, x5]]
+print("Gradien Keuntungan:", grad_P)
 
-# Definisi gradien fungsi keuntungan (turunan parsial)
-def gradien_keuntungan(params, delta=1e-6):
-    h, m, w, l, t = params
-    grad = np.zeros_like(params, dtype=float)
+# Contoh nilai variabel untuk menghitung keuntungan pada titik tertentu
+harga_tiket = 5  # Dalam ribuan Rupiah
+jumlah_mainan = 3
+ada_wahana_air = 1
+lokasi_strategis = 1
+mudah_transportasi = 1
 
-    # Turunan parsial terhadap h
-    params_h_plus = np.array([h + delta, m, w, l, t])
-    params_h_minus = np.array([h - delta, m, w, l, t])
-    grad[0] = (keuntungan(params_h_plus) - keuntungan(params_h_minus)) / (2 * delta)
+keuntungan_prediksi = P.subs({
+    x1: harga_tiket,
+    x2: jumlah_mainan,
+    x3: ada_wahana_air,
+    x4: lokasi_strategis,
+    x5: mudah_transportasi
+})
+print("Prediksi Keuntungan:", keuntungan_prediksi)
 
-    # Turunan parsial terhadap m
-    params_m_plus = np.array([h, m + delta, w, l, t])
-    params_m_minus = np.array([h, m - delta, w, l, t])
-    grad[1] = (keuntungan(params_m_plus) - keuntungan(params_m_minus)) / (2 * delta)
+# Visualisasi (hanya bisa memvisualisasikan hubungan antara dua variabel dan keuntungan)
+# Kita akan memvisualisasikan pengaruh harga tiket (x1) dan jumlah mainan (x2) terhadap keuntungan
 
-    # Turunan parsial terhadap w
-    params_w_plus = np.array([h, m, w + delta, l, t])
-    params_w_minus = np.array([h, m, w - delta, l, t])
-    grad[2] = (keuntungan(params_w_plus) - keuntungan(params_w_minus)) / (2 * delta)
+harga_tiket_range = np.linspace(0, 10, 100) # Rentang harga tiket dari 0 hingga 10 ribu
+jumlah_mainan_range = np.linspace(0, 5, 100) # Rentang jumlah mainan dari 0 hingga 5
+X1, X2 = np.meshgrid(harga_tiket_range, jumlah_mainan_range)
 
-    # Turunan parsial terhadap l
-    params_l_plus = np.array([h, m, w, l + delta, t])
-    params_l_minus = np.array([h, m, w, l - delta, t])
-    grad[3] = (keuntungan(params_l_plus) - keuntungan(params_l_minus)) / (2 * delta)
+# Hitung keuntungan berdasarkan rentang harga tiket dan jumlah mainan (asumsi variabel lain konstan)
+P_values = np.array([[P.subs({x1: h, x2: j, x3: ada_wahana_air, x4: lokasi_strategis, x5: mudah_transportasi})
+                     for h in harga_tiket_range] for j in jumlah_mainan_range])
 
-    # Turunan parsial terhadap t
-    params_t_plus = np.array([h, m, w, l, t + delta if t == 0 else t - delta])
-    params_t_minus = np.array([h, m, w, l, t - delta if t == 1 else t + delta])
-    grad[4] = (keuntungan(params_t_plus) - keuntungan(params_t_minus)) / (2 * delta)
-
-    return grad
-
-# Inisialisasi parameter
-params = np.array([50.0, 10.0, 20.0, 0.7, 1.0])
-learning_rate = 0.001
-n_iterations = 1000
-keuntungan_history = []
-params_history = []
-
-# Gradient Ascent
-for i in range(n_iterations):
-    grad = gradien_keuntungan(params)
-    params = params + learning_rate * grad
-
-    # Memastikan batasan variabel
-    params[0] = np.clip(params[0], 10, 100) # Batas harga tiket
-    params[1] = np.clip(params[1], 0, 50)   # Batas jumlah mainan
-    params[2] = np.clip(params[2], 0, 100)  # Batas luas wahana air
-    params[3] = np.clip(params[3], 0, 1)    # Batas indeks lokasi
-    params[4] = np.round(np.clip(params[4], 0, 1)) # Batas transportasi (0 atau 1)
-
-    keuntungan_current = keuntungan(params)
-    keuntungan_history.append(keuntungan_current)
-    params_history.append(params.copy())
-
-# Hasil optimal
-h_optimal, m_optimal, w_optimal, l_optimal, t_optimal = params
-keuntungan_optimal = keuntungan(params)
-
-print("Hasil Optimal (dengan Gradient Ascent):")
-print(f"Harga Tiket Optimal: ${h_optimal:.2f}")
-print(f"Jumlah Mainan Anak Optimal: {(m_optimal)}")
-print(f"Luas Wahana Air Optimal: {w_optimal:.2f} unit")
-print(f"Indeks Lokasi Optimal: {l_optimal:.2f}")
-print(f"Ketersediaan Transportasi Umum Optimal: {(t_optimal)}")
-print(f"Keuntungan Harian Optimal: ${keuntungan_optimal:.2f}")
-
-# Visualisasi Konvergensi Keuntungan
-plt.figure(figsize=(10, 6))
-plt.plot(range(n_iterations), keuntungan_history)
-plt.xlabel("Iterasi")
-plt.ylabel("Keuntungan Harian ($)")
-plt.title("Konvergensi Keuntungan selama Gradient Ascent")
-plt.grid(True)
+# Buat plot 3D
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+surf = ax.plot_surface(X1, X2, P_values, cmap='viridis')
+ax.set_xlabel('Harga Tiket (ribu Rp)')
+ax.set_ylabel('Jumlah Mainan Anak')
+ax.set_zlabel('Keuntungan (Rp)')
+ax.set_title('Pengaruh Harga Tiket dan Jumlah Mainan terhadap Keuntungan')
+fig.colorbar(surf, ax=ax, label='Keuntungan (Rp)')
 plt.show()
 
-# Visualisasi Perubahan Parameter (Contoh Harga Tiket)
-plt.figure(figsize=(10, 6))
-harga_tiket_history = [p[0] for p in params_history]
-plt.plot(range(n_iterations), harga_tiket_history)
-plt.xlabel("Iterasi")
-plt.ylabel("Harga Tiket ($)")
-plt.title("Perubahan Harga Tiket selama Gradient Ascent")
+# Visualisasi pengaruh satu variabel (misalnya harga tiket) terhadap keuntungan
+harga_tiket_range_1d = np.linspace(0, 10, 100)
+P_values_1d = np.array([P.subs({x1: h, x2: jumlah_mainan, x3: ada_wahana_air, x4: lokasi_strategis, x5: mudah_transportasi})
+                        for h in harga_tiket_range_1d])
+
+plt.figure(figsize=(8, 6))
+plt.plot(harga_tiket_range_1d, P_values_1d)
+plt.xlabel('Harga Tiket (ribu Rp)')
+plt.ylabel('Keuntungan (Rp)')
+plt.title('Pengaruh Harga Tiket terhadap Keuntungan (Variabel Lain Konstan)')
 plt.grid(True)
 plt.show()
-
-# ... (Anda dapat menambahkan visualisasi untuk parameter lainnya)
